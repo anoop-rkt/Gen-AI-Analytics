@@ -1,0 +1,413 @@
+import React, { useReducer, useState, useCallback, useEffect } from 'react';
+import { LineChart, BarChart, PieChart, Line, Bar, Pie, 
+         XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
+
+// Advanced Query Reducer
+const queryReducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_CURRENT_QUERY':
+      return { 
+        ...state, 
+        currentQuery: action.payload,
+        suggestionMode: action.payload.startsWith('/') 
+      };
+    case 'SUBMIT_QUERY':
+      return { 
+        ...state, 
+        isProcessing: true, 
+        error: null 
+      };
+    case 'PROCESS_QUERY_SUCCESS':
+      return {
+        ...state,
+        isProcessing: false,
+        queries: [
+          ...state.queries, 
+          { 
+            query: state.currentQuery, 
+            timestamp: new Date().toLocaleString(),
+            results: action.payload
+          }
+        ],
+        currentResults: action.payload,
+        currentQuery: ''
+      };
+    case 'PROCESS_QUERY_FAILURE':
+      return {
+        ...state,
+        isProcessing: false,
+        error: action.payload
+      };
+    case 'CLEAR_HISTORY':
+      return {
+        ...state,
+        queries: []
+      };
+    default:
+      return state;
+  }
+};
+
+// Enhanced AI Suggestions and Command Shortcuts
+const AI_SUGGESTIONS = [
+  'Sales performance by region',
+  'Customer retention rates',
+  'Product revenue trends',
+  'Marketing campaign effectiveness'
+];
+
+const COMMAND_SHORTCUTS = {
+  '/revenue': 'Show total revenue breakdown',
+  '/customers': 'Display customer metrics',
+  '/top-products': 'List top-performing products',
+  '/regional-performance': 'Compare performance across regions'
+};
+
+// Color Palette for Visualizations
+const COLOR_PALETTE = [
+  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', 
+  '#8884D8', '#82CA9D', '#FF6384'
+];
+
+// Main Dashboard Component
+const GenAIAnalyticsDashboard = () => {
+  // Initial State with Enhanced Structure
+  const initialState = {
+    queries: [],
+    currentQuery: '',
+    currentResults: null,
+    isProcessing: false,
+    error: null,
+    suggestionMode: false
+  };
+
+  const [state, dispatch] = useReducer(queryReducer, initialState);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [visualizationType, setVisualizationType] = useState('line');
+
+   // Growth Rate Calculation
+   const calculateGrowthRate = (data) => {
+    const firstValue = data[0].revenue;
+    const lastValue = data[data.length - 1].revenue;
+    return ((lastValue - firstValue) / firstValue * 100).toFixed(2);
+  };
+
+  // Contextual Insights Generation
+  const generateInsights = (query) => {
+    const insights = [
+      "Steady quarter-over-quarter growth observed",
+      "Customer acquisition rate shows positive trend",
+      "Revenue streams remain diversified"
+    ];
+    return insights;
+  };
+
+  // Simulated Advanced Query Processing
+  const handleQuerySubmit = useCallback(() => {
+    dispatch({ type: 'SUBMIT_QUERY' });
+
+    // Simulate complex query processing
+    const mockResults = generateMockResults(state.currentQuery);
+
+    // Simulate async processing
+    setTimeout(() => {
+      dispatch({ 
+        type: 'PROCESS_QUERY_SUCCESS', 
+        payload: mockResults 
+      });
+    }, 500);
+  }, // eslint-disable-next-line 
+  [state.currentQuery]);
+
+  // Enhanced Suggestion Logic
+  const handleQueryChange = (value) => {
+    dispatch({ type: 'SET_CURRENT_QUERY', payload: value });
+    setShowSuggestions(true);
+
+    // Handle command shortcuts
+    if (value.startsWith('/')) {
+      const matchedCommands = Object.entries(COMMAND_SHORTCUTS)
+        .filter(([cmd]) => cmd.toLowerCase().includes(value.toLowerCase()));
+      setSuggestions(matchedCommands);
+      return;
+    }
+
+    // Regular AI suggestions
+    const filteredSuggestions = AI_SUGGESTIONS.filter(suggestion => 
+      suggestion.toLowerCase().includes(value.toLowerCase())
+    );
+    setSuggestions(filteredSuggestions);
+  };
+
+  // New function to handle suggestion selection
+  const handleSuggestionSelect = (suggestion) => {
+    // If it's a command shortcut
+    if (state.suggestionMode) {
+      handleQueryChange(suggestion[0]);
+    } else {
+      handleQueryChange(suggestion);
+    }
+    
+    // Clear suggestions and hide suggestion list
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  // Mock Data Generation Function
+  const generateMockResults = (query) => {
+    // Sophisticated mock data generation based on query
+    const baseData = [
+      { name: 'Q1 2023', revenue: 450000, customers: 1200, products: 50 },
+      { name: 'Q2 2023', revenue: 520000, customers: 1350, products: 55 },
+      { name: 'Q3 2023', revenue: 610000, customers: 1500, products: 60 },
+      { name: 'Q4 2023', revenue: 680000, customers: 1650, products: 65 }
+    ];
+
+    // Enhanced result generation logic
+    return {
+      data: baseData,
+      summary: {
+        totalRevenue: baseData.reduce((sum, item) => sum + item.revenue, 0),
+        totalCustomers: baseData.reduce((sum, item) => sum + item.customers, 0),
+        averageGrowth: calculateGrowthRate(baseData)
+      },
+      insights: generateInsights(query)
+    };
+  };
+
+
+  // Add click outside listener to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if the click is outside the input and suggestion area
+      const suggestionContainer = document.getElementById('suggestion-container');
+      const inputElement = document.getElementById('query-input');
+      
+      if (
+        suggestionContainer && 
+        inputElement && 
+        !suggestionContainer.contains(event.target) && 
+        !inputElement.contains(event.target)
+      ) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Cleanup listener
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Visualization Renderer
+  const renderVisualization = () => {
+    if (!state.currentResults) return null;
+
+    const data = state.currentResults.data;
+
+    switch (visualizationType) {
+      case 'bar':
+        return (
+          <BarChart width={600} height={300} data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="revenue" fill="#8884d8" name="Revenue" />
+            <Bar dataKey="customers" fill="#82ca9d" name="Customers" />
+          </BarChart>
+        );
+      case 'pie':
+        return (
+          <PieChart width={400} height={300}>
+            <Pie
+              data={data}
+              cx={200}
+              cy={150}
+              labelLine={false}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="revenue"
+            >
+              {data.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={COLOR_PALETTE[index % COLOR_PALETTE.length]} 
+                />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        );
+      default:
+        return (
+          <LineChart width={600} height={300} data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue" />
+            <Line type="monotone" dataKey="customers" stroke="#82ca9d" name="Customers" />
+          </LineChart>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-lg p-6">
+        <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">
+          Gen AI Analytics Dashboard
+        </h1>
+
+        {/* Query Input Section */}
+        <div className="mb-6 relative">
+          <input 
+            id="query-input"
+            type="text"
+            value={state.currentQuery}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            placeholder="Ask a business question or use /commands"
+            className="w-full p-4 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div 
+              id="suggestion-container"
+              className="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1"
+            >
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSuggestionSelect(suggestion)}
+                  className="w-full text-left p-2 hover:bg-blue-50 transition"
+                >
+                  {state.suggestionMode 
+                    ? `${suggestion[0]}: ${suggestion[1]}` 
+                    : suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex space-x-4 mb-6">
+          <button 
+            onClick={handleQuerySubmit}
+            disabled={!state.currentQuery}
+            className="flex-grow bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {state.isProcessing ? 'Processing...' : 'Get Insights'}
+          </button>
+          <button 
+            onClick={() => dispatch({ type: 'CLEAR_HISTORY' })}
+            className="bg-red-500 text-white px-4 py-3 rounded-lg hover:bg-red-600 transition"
+          >
+            Clear History
+          </button>
+        </div>
+
+        {/* Visualization Controls */}
+        {state.currentResults && (
+          <div className="mb-6 flex justify-center space-x-4">
+            <button 
+              onClick={() => setVisualizationType('line')}
+              className={`px-4 py-2 rounded ${
+                visualizationType === 'line' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              Line Chart
+            </button>
+            <button 
+              onClick={() => setVisualizationType('bar')}
+              className={`px-4 py-2 rounded ${
+                visualizationType === 'bar' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              Bar Chart
+            </button>
+            <button 
+              onClick={() => setVisualizationType('pie')}
+              className={`px-4 py-2 rounded ${
+                visualizationType === 'pie' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              Pie Chart
+            </button>
+          </div>
+        )}
+
+        {/* Results Visualization */}
+        <div className="flex justify-center mb-6">
+          {renderVisualization()}
+        </div>
+
+        {/* Insights Summary */}
+        {state.currentResults && (
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4">Insights Summary</h2>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-white p-3 rounded-lg shadow">
+                <h3 className="font-bold text-blue-600">Total Revenue</h3>
+                <p>${state.currentResults.summary.totalRevenue.toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-3 rounded-lg shadow">
+                <h3 className="font-bold text-blue-600">Total Customers</h3>
+                <p>{state.currentResults.summary.totalCustomers.toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-3 rounded-lg shadow">
+                <h3 className="font-bold text-blue-600">Growth Rate</h3>
+                <p>{state.currentResults.summary.averageGrowth}%</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Query History */}
+        <div className="mt-6 border-t pt-4">
+          <h2 className="text-xl font-semibold mb-4">Query History</h2>
+          <div className="max-h-64 overflow-y-auto">
+            {state.queries.map((queryItem, index) => (
+              <div 
+                key={index} 
+                className="bg-gray-100 p-3 rounded-lg mb-2 flex justify-between items-center"
+              >
+                <div>
+                  <p className="font-medium">{queryItem.query}</p>
+                  <p className="text-sm text-gray-500">{queryItem.timestamp}</p>
+                </div>
+                <button 
+                  className="text-blue-600 hover:text-blue-800"
+                  onClick={() => {
+                    dispatch({ 
+                      type: 'PROCESS_QUERY_SUCCESS', 
+                      payload: queryItem.results 
+                    });
+                  }}
+                >
+                  Rerun
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GenAIAnalyticsDashboard;
