@@ -1,15 +1,16 @@
-import React, { useReducer, useState, useCallback, useEffect } from 'react';
+import React, { useReducer, useState, useCallback, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, PieChart, Line, Bar, Pie, 
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 
-// Advanced Query Reducer
+// Advanced Query Reducer with Enhanced Error Handling
 const queryReducer = (state, action) => {
   switch (action.type) {
     case 'SET_CURRENT_QUERY':
       return { 
         ...state, 
         currentQuery: action.payload,
-        suggestionMode: action.payload.startsWith('/') 
+        suggestionMode: action.payload.startsWith('/'),
+        error: null 
       };
     case 'SUBMIT_QUERY':
       return { 
@@ -30,18 +31,22 @@ const queryReducer = (state, action) => {
           }
         ],
         currentResults: action.payload,
-        currentQuery: ''
+        currentQuery: '',
+        error: null
       };
     case 'PROCESS_QUERY_FAILURE':
       return {
         ...state,
         isProcessing: false,
-        error: action.payload
+        error: action.payload,
+        currentResults: null
       };
     case 'CLEAR_HISTORY':
       return {
         ...state,
-        queries: []
+        queries: [],
+        currentResults: null,
+        error: null
       };
     default:
       return state;
@@ -53,25 +58,29 @@ const AI_SUGGESTIONS = [
   'Sales performance by region',
   'Customer retention rates',
   'Product revenue trends',
-  'Marketing campaign effectiveness'
+  'Marketing campaign effectiveness',
+  'Quarterly financial overview',
+  'Competitive market analysis'
 ];
 
 const COMMAND_SHORTCUTS = {
-  '/revenue': 'Show total revenue breakdown',
-  '/customers': 'Display customer metrics',
-  '/top-products': 'List top-performing products',
-  '/regional-performance': 'Compare performance across regions'
+  '/revenue': 'Detailed revenue breakdown',
+  '/customers': 'Comprehensive customer metrics',
+  '/top-products': 'Ranking of top-performing products',
+  '/regional-performance': 'Comparative regional performance analysis',
+  '/forecast': 'Revenue and growth prediction'
 };
 
-// Color Palette for Visualizations
+// Color Palette for Visualizations with Enhanced Contrast
 const COLOR_PALETTE = [
   '#0088FE', '#00C49F', '#FFBB28', '#FF8042', 
-  '#8884D8', '#82CA9D', '#FF6384'
+  '#8884D8', '#82CA9D', '#FF6384', 
+  '#36A2EB', '#FFCE56', '#4BC0C0'
 ];
 
-// Main Dashboard Component
+// Main Dashboard Component with Enhanced Features
 const GenAIAnalyticsDashboard = () => {
-  // Initial State with Enhanced Structure
+  // Initial State with More Comprehensive Error Handling
   const initialState = {
     queries: [],
     currentQuery: '',
@@ -86,39 +95,39 @@ const GenAIAnalyticsDashboard = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [visualizationType, setVisualizationType] = useState('line');
 
-   // Growth Rate Calculation
-   const calculateGrowthRate = (data) => {
-    const firstValue = data[0].revenue;
-    const lastValue = data[data.length - 1].revenue;
-    return ((lastValue - firstValue) / firstValue * 100).toFixed(2);
-  };
+  // Enhanced Growth Rate Calculation with More Robust Error Handling
+  const calculateGrowthRate = useCallback((data) => {
+    if (!data || data.length < 2) return 'N/A';
+    try {
+      const firstValue = data[0].revenue;
+      const lastValue = data[data.length - 1].revenue;
+      return ((lastValue - firstValue) / firstValue * 100).toFixed(2);
+    } catch (error) {
+      console.error('Growth rate calculation error:', error);
+      return 'Unavailable';
+    }
+  }, []);
 
-  // Contextual Insights Generation
-  const generateInsights = (query) => {
-    const insights = [
-      "Steady quarter-over-quarter growth observed",
-      "Customer acquisition rate shows positive trend",
-      "Revenue streams remain diversified"
+  // Advanced Contextual Insights Generation
+  const generateInsights = useCallback((query, results) => {
+    const insightRules = [
+      {
+        condition: (q) => q.includes('revenue'),
+        insight: () => `Revenue ${results.summary.averageGrowth > 0 ? 'increased' : 'decreased'} by ${Math.abs(results.summary.averageGrowth)}%`
+      },
+      {
+        condition: (q) => q.includes('customer'),
+        insight: () => `Customer base shows ${results.summary.totalCustomers > 1500 ? 'strong' : 'moderate'} growth`
+      },
+      {
+        condition: (q) => q.includes('product'),
+        insight: () => 'Product portfolio demonstrates consistent performance'
+      }
     ];
-    return insights;
-  };
 
-  // Simulated Advanced Query Processing
-  const handleQuerySubmit = useCallback(() => {
-    dispatch({ type: 'SUBMIT_QUERY' });
-
-    // Simulate complex query processing
-    const mockResults = generateMockResults(state.currentQuery);
-
-    // Simulate async processing
-    setTimeout(() => {
-      dispatch({ 
-        type: 'PROCESS_QUERY_SUCCESS', 
-        payload: mockResults 
-      });
-    }, 500);
-  }, // eslint-disable-next-line 
-  [state.currentQuery]);
+    const matchedInsight = insightRules.find(rule => rule.condition(query));
+    return matchedInsight ? matchedInsight.insight() : 'General performance remains stable';
+  }, []);
 
   // Enhanced Suggestion Logic
   const handleQueryChange = (value) => {
@@ -154,28 +163,62 @@ const GenAIAnalyticsDashboard = () => {
     setShowSuggestions(false);
   };
 
-  // Mock Data Generation Function
-  const generateMockResults = (query) => {
-    // Sophisticated mock data generation based on query
-    const baseData = [
-      { name: 'Q1 2023', revenue: 450000, customers: 1200, products: 50 },
-      { name: 'Q2 2023', revenue: 520000, customers: 1350, products: 55 },
-      { name: 'Q3 2023', revenue: 610000, customers: 1500, products: 60 },
-      { name: 'Q4 2023', revenue: 680000, customers: 1650, products: 65 }
-    ];
+  // Simulated Advanced Query Processing with Enhanced Error Handling
+  const handleQuerySubmit = useCallback(() => {
+    if (!state.currentQuery.trim()) {
+      dispatch({ 
+        type: 'PROCESS_QUERY_FAILURE', 
+        payload: 'Query cannot be empty' 
+      });
+      return;
+    }
 
-    // Enhanced result generation logic
-    return {
-      data: baseData,
-      summary: {
-        totalRevenue: baseData.reduce((sum, item) => sum + item.revenue, 0),
-        totalCustomers: baseData.reduce((sum, item) => sum + item.customers, 0),
-        averageGrowth: calculateGrowthRate(baseData)
-      },
-      insights: generateInsights(query)
+    dispatch({ type: 'SUBMIT_QUERY' });
+
+    // Simulate complex query processing with error handling
+    try {
+      const mockResults = generateMockResults(state.currentQuery);
+
+      // Simulate async processing
+      setTimeout(() => {
+        dispatch({ 
+          type: 'PROCESS_QUERY_SUCCESS', 
+          payload: mockResults 
+        });
+      }, 500);
+    } catch (error) {
+      dispatch({ 
+        type: 'PROCESS_QUERY_FAILURE', 
+        payload: 'Unable to process query. Please try again.' 
+      });
+    }
+  }, // eslint-disable-next-line
+  [state.currentQuery]);
+
+  // Memoized Mock Data Generation for Performance
+  const generateMockResults = useMemo(() => {
+    return (query) => {
+      const baseData = [
+        { name: 'Q1 2023', revenue: 450000, customers: 1200, products: 50 },
+        { name: 'Q2 2023', revenue: 520000, customers: 1350, products: 55 },
+        { name: 'Q3 2023', revenue: 610000, customers: 1500, products: 60 },
+        { name: 'Q4 2023', revenue: 680000, customers: 1650, products: 65 }
+      ];
+
+      return {
+        data: baseData,
+        summary: {
+          totalRevenue: baseData.reduce((sum, item) => sum + item.revenue, 0),
+          totalCustomers: baseData.reduce((sum, item) => sum + item.customers, 0),
+          averageGrowth: calculateGrowthRate(baseData)
+        },
+        insights: [generateInsights(query, { summary: { 
+          averageGrowth: calculateGrowthRate(baseData),
+          totalCustomers: baseData.reduce((sum, item) => sum + item.customers, 0)
+        }})]
+      };
     };
-  };
-
+  }, [calculateGrowthRate, generateInsights]);
 
   // Add click outside listener to close suggestions
   useEffect(() => {
@@ -267,6 +310,14 @@ const GenAIAnalyticsDashboard = () => {
         <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">
           Gen AI Analytics Dashboard
         </h1>
+
+        {/* Error Display */}
+        {state.error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{state.error}</span>
+          </div>
+        )}
 
         {/* Query Input Section */}
         <div className="mb-6 relative">
@@ -373,6 +424,16 @@ const GenAIAnalyticsDashboard = () => {
                 <h3 className="font-bold text-blue-600">Growth Rate</h3>
                 <p>{state.currentResults.summary.averageGrowth}%</p>
               </div>
+            </div>
+            
+            {/* Contextual Insights */}
+            <div className="mt-4 bg-white p-3 rounded-lg shadow">
+              <h3 className="font-bold text-blue-600 mb-2">Key Insights</h3>
+              <ul className="list-disc list-inside">
+                {state.currentResults.insights.map((insight, index) => (
+                  <li key={index} className="text-gray-700">{insight}</li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
