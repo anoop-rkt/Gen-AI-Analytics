@@ -1,31 +1,33 @@
 import React, { useReducer, useState, useCallback, useEffect, useMemo } from 'react';
-import { LineChart, BarChart, PieChart, Line, Bar, Pie, 
-         XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
+import {
+  LineChart, BarChart, PieChart, Line, Bar, Pie,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell
+} from 'recharts';
 
 // Advanced Query Reducer with Enhanced Error Handling
 const queryReducer = (state, action) => {
   switch (action.type) {
     case 'SET_CURRENT_QUERY':
-      return { 
-        ...state, 
+      return {
+        ...state,
         currentQuery: action.payload,
         suggestionMode: action.payload.startsWith('/'),
-        error: null 
+        error: null
       };
     case 'SUBMIT_QUERY':
-      return { 
-        ...state, 
-        isProcessing: true, 
-        error: null 
+      return {
+        ...state,
+        isProcessing: true,
+        error: null
       };
     case 'PROCESS_QUERY_SUCCESS':
       return {
         ...state,
         isProcessing: false,
         queries: [
-          ...state.queries, 
-          { 
-            query: state.currentQuery, 
+          ...state.queries,
+          {
+            query: state.currentQuery,
             timestamp: new Date().toLocaleString(),
             results: action.payload
           }
@@ -55,12 +57,27 @@ const queryReducer = (state, action) => {
 
 // Enhanced AI Suggestions and Command Shortcuts
 const AI_SUGGESTIONS = [
+  'Top performing products this quarter',
+  'Sales conversion rate by channel',
+  'Market share analysis in key regions',
+  'Operational efficiency metrics',
+  'Seasonal trends impact on business',
+  'Monthly revenue breakdown by product category',
+  'Year-over-year revenue growth analysis',
+  'Revenue forecast for next quarter',
+  'Impact of pricing changes on revenue',
+  'Revenue attribution by marketing channel',
+  'Customer lifetime value analysis',
+  'Customer segmentation by spending patterns',
+  'Churn rate analysis for premium customers',
+  'New vs returning customer revenue',
+  'Customer acquisition cost trends',
   'Sales performance by region',
   'Customer retention rates',
   'Product revenue trends',
   'Marketing campaign effectiveness',
   'Quarterly financial overview',
-  'Competitive market analysis'
+  'Competitive market analysis',
 ];
 
 const COMMAND_SHORTCUTS = {
@@ -73,8 +90,8 @@ const COMMAND_SHORTCUTS = {
 
 // Color Palette for Visualizations with Enhanced Contrast
 const COLOR_PALETTE = [
-  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', 
-  '#8884D8', '#82CA9D', '#FF6384', 
+  '#0088FE', '#00C49F', '#FFBB28', '#FF8042',
+  '#8884D8', '#82CA9D', '#FF6384',
   '#36A2EB', '#FFCE56', '#4BC0C0'
 ];
 
@@ -129,7 +146,7 @@ const GenAIAnalyticsDashboard = () => {
     return matchedInsight ? matchedInsight.insight() : 'General performance remains stable';
   }, []);
 
-  // Enhanced Suggestion Logic
+  // Enhanced Suggestion Logic with better filtering and categorization
   const handleQueryChange = (value) => {
     dispatch({ type: 'SET_CURRENT_QUERY', payload: value });
     setShowSuggestions(true);
@@ -142,11 +159,38 @@ const GenAIAnalyticsDashboard = () => {
       return;
     }
 
-    // Regular AI suggestions
-    const filteredSuggestions = AI_SUGGESTIONS.filter(suggestion => 
-      suggestion.toLowerCase().includes(value.toLowerCase())
-    );
-    setSuggestions(filteredSuggestions);
+    // Improved AI suggestion filtering with relevance scoring
+    if (value.trim().length > 0) {
+      // Split query into keywords
+      const keywords = value.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+      
+      // Score each suggestion based on keyword matches
+      const scoredSuggestions = AI_SUGGESTIONS.map(suggestion => {
+        const suggestionLower = suggestion.toLowerCase();
+        // Base score if suggestion contains the exact query
+        let score = suggestionLower.includes(value.toLowerCase()) ? 10 : 0;
+        
+        // Add points for each keyword match
+        keywords.forEach(keyword => {
+          if (suggestionLower.includes(keyword)) {
+            score += 5;
+          }
+        });
+        
+        return { suggestion, score };
+      });
+      
+      // Filter suggestions with any score and sort by descending score
+      const filteredSuggestions = scoredSuggestions
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(item => item.suggestion)
+        .slice(0, 7); // Limit to top 7 suggestions
+      
+      setSuggestions(filteredSuggestions);
+    } else {
+      setSuggestions([]);
+    }
   };
 
   // New function to handle suggestion selection
@@ -157,7 +201,7 @@ const GenAIAnalyticsDashboard = () => {
     } else {
       handleQueryChange(suggestion);
     }
-    
+
     // Clear suggestions and hide suggestion list
     setSuggestions([]);
     setShowSuggestions(false);
@@ -166,9 +210,9 @@ const GenAIAnalyticsDashboard = () => {
   // Simulated Advanced Query Processing with Enhanced Error Handling
   const handleQuerySubmit = useCallback(() => {
     if (!state.currentQuery.trim()) {
-      dispatch({ 
-        type: 'PROCESS_QUERY_FAILURE', 
-        payload: 'Query cannot be empty' 
+      dispatch({
+        type: 'PROCESS_QUERY_FAILURE',
+        payload: 'Query cannot be empty'
       });
       return;
     }
@@ -181,19 +225,19 @@ const GenAIAnalyticsDashboard = () => {
 
       // Simulate async processing
       setTimeout(() => {
-        dispatch({ 
-          type: 'PROCESS_QUERY_SUCCESS', 
-          payload: mockResults 
+        dispatch({
+          type: 'PROCESS_QUERY_SUCCESS',
+          payload: mockResults
         });
       }, 500);
     } catch (error) {
-      dispatch({ 
-        type: 'PROCESS_QUERY_FAILURE', 
-        payload: 'Unable to process query. Please try again.' 
+      dispatch({
+        type: 'PROCESS_QUERY_FAILURE',
+        payload: 'Unable to process query. Please try again.'
       });
     }
   }, // eslint-disable-next-line
-  [state.currentQuery]);
+    [state.currentQuery]);
 
   // Memoized Mock Data Generation for Performance
   const generateMockResults = useMemo(() => {
@@ -212,10 +256,12 @@ const GenAIAnalyticsDashboard = () => {
           totalCustomers: baseData.reduce((sum, item) => sum + item.customers, 0),
           averageGrowth: calculateGrowthRate(baseData)
         },
-        insights: [generateInsights(query, { summary: { 
-          averageGrowth: calculateGrowthRate(baseData),
-          totalCustomers: baseData.reduce((sum, item) => sum + item.customers, 0)
-        }})]
+        insights: [generateInsights(query, {
+          summary: {
+            averageGrowth: calculateGrowthRate(baseData),
+            totalCustomers: baseData.reduce((sum, item) => sum + item.customers, 0)
+          }
+        })]
       };
     };
   }, [calculateGrowthRate, generateInsights]);
@@ -226,11 +272,11 @@ const GenAIAnalyticsDashboard = () => {
       // Check if the click is outside the input and suggestion area
       const suggestionContainer = document.getElementById('suggestion-container');
       const inputElement = document.getElementById('query-input');
-      
+
       if (
-        suggestionContainer && 
-        inputElement && 
-        !suggestionContainer.contains(event.target) && 
+        suggestionContainer &&
+        inputElement &&
+        !suggestionContainer.contains(event.target) &&
         !inputElement.contains(event.target)
       ) {
         setSuggestions([]);
@@ -240,7 +286,7 @@ const GenAIAnalyticsDashboard = () => {
 
     // Add event listener
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     // Cleanup listener
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -279,9 +325,9 @@ const GenAIAnalyticsDashboard = () => {
               dataKey="revenue"
             >
               {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={COLOR_PALETTE[index % COLOR_PALETTE.length]} 
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLOR_PALETTE[index % COLOR_PALETTE.length]}
                 />
               ))}
             </Pie>
@@ -321,7 +367,7 @@ const GenAIAnalyticsDashboard = () => {
 
         {/* Query Input Section */}
         <div className="mb-6 relative">
-          <input 
+          <input
             id="query-input"
             type="text"
             value={state.currentQuery}
@@ -330,7 +376,7 @@ const GenAIAnalyticsDashboard = () => {
             className="w-full p-4 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {showSuggestions && suggestions.length > 0 && (
-            <div 
+            <div
               id="suggestion-container"
               className="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1"
             >
@@ -340,8 +386,8 @@ const GenAIAnalyticsDashboard = () => {
                   onClick={() => handleSuggestionSelect(suggestion)}
                   className="w-full text-left p-2 hover:bg-blue-50 transition"
                 >
-                  {state.suggestionMode 
-                    ? `${suggestion[0]}: ${suggestion[1]}` 
+                  {state.suggestionMode
+                    ? `${suggestion[0]}: ${suggestion[1]}`
                     : suggestion}
                 </button>
               ))}
@@ -351,14 +397,14 @@ const GenAIAnalyticsDashboard = () => {
 
         {/* Action Buttons */}
         <div className="flex space-x-4 mb-6">
-          <button 
+          <button
             onClick={handleQuerySubmit}
             disabled={!state.currentQuery}
             className="flex-grow bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
             {state.isProcessing ? 'Processing...' : 'Get Insights'}
           </button>
-          <button 
+          <button
             onClick={() => dispatch({ type: 'CLEAR_HISTORY' })}
             className="bg-red-500 text-white px-4 py-3 rounded-lg hover:bg-red-600 transition"
           >
@@ -369,33 +415,30 @@ const GenAIAnalyticsDashboard = () => {
         {/* Visualization Controls */}
         {state.currentResults && (
           <div className="mb-6 flex justify-center space-x-4">
-            <button 
+            <button
               onClick={() => setVisualizationType('line')}
-              className={`px-4 py-2 rounded ${
-                visualizationType === 'line' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-800'
-              }`}
+              className={`px-4 py-2 rounded ${visualizationType === 'line'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-800'
+                }`}
             >
               Line Chart
             </button>
-            <button 
+            <button
               onClick={() => setVisualizationType('bar')}
-              className={`px-4 py-2 rounded ${
-                visualizationType === 'bar' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-800'
-              }`}
+              className={`px-4 py-2 rounded ${visualizationType === 'bar'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-800'
+                }`}
             >
               Bar Chart
             </button>
-            <button 
+            <button
               onClick={() => setVisualizationType('pie')}
-              className={`px-4 py-2 rounded ${
-                visualizationType === 'pie' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-800'
-              }`}
+              className={`px-4 py-2 rounded ${visualizationType === 'pie'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-800'
+                }`}
             >
               Pie Chart
             </button>
@@ -425,7 +468,7 @@ const GenAIAnalyticsDashboard = () => {
                 <p>{state.currentResults.summary.averageGrowth}%</p>
               </div>
             </div>
-            
+
             {/* Contextual Insights */}
             <div className="mt-4 bg-white p-3 rounded-lg shadow">
               <h3 className="font-bold text-blue-600 mb-2">Key Insights</h3>
@@ -443,20 +486,20 @@ const GenAIAnalyticsDashboard = () => {
           <h2 className="text-xl font-semibold mb-4">Query History</h2>
           <div className="max-h-64 overflow-y-auto">
             {state.queries.map((queryItem, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="bg-gray-100 p-3 rounded-lg mb-2 flex justify-between items-center"
               >
                 <div>
                   <p className="font-medium">{queryItem.query}</p>
                   <p className="text-sm text-gray-500">{queryItem.timestamp}</p>
                 </div>
-                <button 
+                <button
                   className="text-blue-600 hover:text-blue-800"
                   onClick={() => {
-                    dispatch({ 
-                      type: 'PROCESS_QUERY_SUCCESS', 
-                      payload: queryItem.results 
+                    dispatch({
+                      type: 'PROCESS_QUERY_SUCCESS',
+                      payload: queryItem.results
                     });
                   }}
                 >
