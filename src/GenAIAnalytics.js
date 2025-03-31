@@ -354,7 +354,7 @@ const GenAIAnalyticsDashboard = () => {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-lg p-6">
         <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">
-          Gen AI Analytics Dashboard
+          Gen AI Analytics
         </h1>
 
         {/* Error Display */}

@@ -1,9 +1,9 @@
 import React from 'react';
-import GenAIAnalyticsDashboard from './GenAIAnalyticsDashboard';
+import GenAIAnalytics from './GenAIAnalytics';
 import './index.css';
 
 function App() {
-  return <GenAIAnalyticsDashboard />;
+  return <GenAIAnalytics />;
 }
 
 export default App;
